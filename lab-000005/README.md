@@ -1,111 +1,111 @@
-# AWS RDS Snapshot Management Lab
+# Bài thực hành Quản lý Snapshot RDS AWS
 
-This lab demonstrates how to work with RDS snapshots in a real-world scenario, including creating snapshots, restoring from snapshots, and implementing seamless endpoint switching for applications.
+Bài thực hành này minh họa cách làm việc với snapshot RDS trong kịch bản thực tế, bao gồm việc tạo snapshot, khôi phục từ snapshot và triển khai chuyển đổi endpoint liền mạch cho các ứng dụng.
 
-## Lab Overview
+## Tổng quan Bài thực hành
 
-In this lab, we've implemented:
+Trong bài thực hành này, chúng ta đã triển khai:
 
-1. **RDS Instance Management** - Creating and configuring an Amazon RDS MySQL database
-2. **Database Snapshot Operations** - Creating and restoring from snapshots
-3. **Endpoint Switching** - Implementing a strategy for switching database endpoints without application downtime
+1. **Quản lý Instance RDS** - Tạo và cấu hình cơ sở dữ liệu MySQL Amazon RDS
+2. **Thao tác Snapshot Cơ sở dữ liệu** - Tạo và khôi phục từ snapshot
+3. **Chuyển đổi Endpoint** - Triển khai chiến lược chuyển đổi endpoint cơ sở dữ liệu mà không làm gián đoạn ứng dụng
 
-## Key Components
+## Các thành phần chính
 
-- **Primary RDS Instance**: Regular MySQL database (`fcj-management-db-instance`)
-- **Restored RDS Instance**: Database restored from snapshot (`fcj-management-db-instance-restore`)
-- **Node.js Application**: Web application connecting to the database
-- **Database Initialization Scripts**: SQL scripts for creating tables and populating data
+- **Instance RDS Chính**: Cơ sở dữ liệu MySQL thông thường (`fcj-management-db-instance`)
+- **Instance RDS Khôi phục**: Cơ sở dữ liệu được khôi phục từ snapshot (`fcj-management-db-instance-restore`)
+- **Ứng dụng Node.js**: Ứng dụng web kết nối với cơ sở dữ liệu
+- **Script Khởi tạo Cơ sở dữ liệu**: Script SQL để tạo bảng và điền dữ liệu
 
-## Snapshot and Restore Process
+## Quy trình Snapshot và Khôi phục
 
-### Creating a Snapshot
+### Tạo Snapshot
 
-The primary RDS instance is configured to create a final snapshot when deleted:
+Instance RDS chính được cấu hình để tạo snapshot cuối cùng khi bị xóa:
 
 ```terraform
 resource "aws_db_instance" "mysql" {
-  # ... other configuration ...
+  # ... cấu hình khác ...
   skip_final_snapshot = false
   final_snapshot_identifier = "lab-06-db-${formatdate("YYYYMMDD-HHmmss", timestamp())}"
 }
 ```
 
-Manual snapshots can also be created through:
+Các snapshot thủ công cũng có thể được tạo thông qua:
 - AWS Console
 - AWS CLI: `aws rds create-db-snapshot --db-instance-identifier fcj-management-db-instance --db-snapshot-identifier manual-snapshot-name`
-- Terraform: Using the `aws_db_snapshot` resource
+- Terraform: Sử dụng resource `aws_db_snapshot`
 
-### Restoring from a Snapshot
+### Khôi phục từ Snapshot
 
-We restored a database from a snapshot using Terraform:
+Chúng ta đã khôi phục cơ sở dữ liệu từ snapshot bằng Terraform:
 
 ```terraform
 resource "aws_db_instance" "mysql_restore" {
-  # ... configuration ...
+  # ... cấu hình ...
   identifier = "fcj-management-db-instance-restore"
-  # ... other parameters ...
+  # ... tham số khác ...
 }
 ```
 
-The existing restoration instance is imported into Terraform state:
+Instance khôi phục hiện có được import vào Terraform state:
 ```
 terraform import -var-file=dev.tfvars aws_db_instance.mysql_restore fcj-management-db-instance-restore
 ```
 
-## Endpoint Switching Strategy
+## Chiến lược Chuyển đổi Endpoint
 
-Our application can switch between database endpoints without interruption by:
+Ứng dụng của chúng ta có thể chuyển đổi giữa các endpoint cơ sở dữ liệu mà không bị gián đoạn bằng cách:
 
-1. **Environment Variables**: The application reads database connection details from environment variables
-2. **Endpoint Information**: Both database endpoints are available as Terraform outputs:
+1. **Biến Môi trường**: Ứng dụng đọc thông tin kết nối cơ sở dữ liệu từ biến môi trường
+2. **Thông tin Endpoint**: Cả hai endpoint cơ sở dữ liệu đều có sẵn dưới dạng output Terraform:
    ```terraform
    output "mysql_info" { ... }
    output "mysql_restore_info" { ... }
    ```
-3. **Seamless Switching**: By updating the environment variables or application configuration, we can switch database endpoints without redeploying the application
+3. **Chuyển đổi Liền mạch**: Bằng cách cập nhật biến môi trường hoặc cấu hình ứng dụng, chúng ta có thể chuyển đổi endpoint cơ sở dữ liệu mà không cần triển khai lại ứng dụng
 
-### Implementation Steps
+### Các bước Triển khai
 
-1. **Create Initial Database**: Deploy the RDS instance via Terraform
-2. **Initialize Database**: Run initialization scripts to create tables and insert data
-3. **Create Snapshot**: Generate a point-in-time snapshot of the database
-4. **Restore from Snapshot**: Deploy a second RDS instance from the snapshot
-5. **Test Connectivity**: Verify application connects to the restored database
-6. **Switch Endpoints**: Update application configuration to use the new endpoint
+1. **Tạo Cơ sở dữ liệu Ban đầu**: Triển khai instance RDS qua Terraform
+2. **Khởi tạo Cơ sở dữ liệu**: Chạy script khởi tạo để tạo bảng và nhập dữ liệu
+3. **Tạo Snapshot**: Tạo snapshot theo thời điểm của cơ sở dữ liệu
+4. **Khôi phục từ Snapshot**: Triển khai instance RDS thứ hai từ snapshot
+5. **Kiểm tra Kết nối**: Xác minh ứng dụng kết nối với cơ sở dữ liệu đã khôi phục
+6. **Chuyển đổi Endpoint**: Cập nhật cấu hình ứng dụng để sử dụng endpoint mới
 
-## Database Initialization
+## Khởi tạo Cơ sở dữ liệu
 
-We've implemented a flexible database initialization approach:
+Chúng ta đã triển khai cách tiếp cận khởi tạo cơ sở dữ liệu linh hoạt:
 
-1. SQL scripts for creating tables and populating data
-2. Helper scripts to execute SQL against either RDS instance
-3. Documentation for DevOps teams to run the initialization
+1. Script SQL để tạo bảng và điền dữ liệu
+2. Script hỗ trợ để thực thi SQL đối với một trong hai instance RDS
+3. Tài liệu cho đội DevOps để chạy quá trình khởi tạo
 
-## Checking Application Status
+## Kiểm tra Trạng thái Ứng dụng
 
-You can verify the application's database connection using:
+Bạn có thể xác minh kết nối cơ sở dữ liệu của ứng dụng bằng cách:
 
 ```bash
-# Check if the application is running on port 5000
+# Kiểm tra xem ứng dụng có đang chạy trên cổng 5000 không
 lsof -i :5000
 
-# Check application logs
+# Kiểm tra log ứng dụng
 cat /home/ec2-user/app_start.log
 
-# Test application connectivity
+# Kiểm tra kết nối ứng dụng
 curl http://localhost:5000
 ```
 
-## Benefits of This Approach
+## Lợi ích của Cách tiếp cận Này
 
-1. **Disaster Recovery**: Quickly restore from snapshots in case of database corruption
-2. **Database Migration**: Test new database configurations without affecting production
-3. **Performance Testing**: Compare performance between different instance types
-4. **Zero-Downtime Upgrades**: Switch to upgraded database instances without interrupting service
+1. **Khôi phục Thảm họa**: Nhanh chóng khôi phục từ snapshot trong trường hợp hỏng cơ sở dữ liệu
+2. **Di chuyển Cơ sở dữ liệu**: Kiểm tra cấu hình cơ sở dữ liệu mới mà không ảnh hưởng đến môi trường sản xuất
+3. **Kiểm tra Hiệu suất**: So sánh hiệu suất giữa các loại instance khác nhau
+4. **Nâng cấp Không Thời gian Chết**: Chuyển sang các instance cơ sở dữ liệu đã nâng cấp mà không gián đoạn dịch vụ
 
-## Future Improvements
+## Cải tiến Tương lai
 
-- Implement automatic failover between primary and secondary databases
-- Add monitoring for database performance and snapshot status
-- Create automated scripts for routine snapshot creation and validation 
+- Triển khai tự động chuyển đổi dự phòng giữa cơ sở dữ liệu chính và phụ
+- Thêm giám sát hiệu suất cơ sở dữ liệu và trạng thái snapshot
+- Tạo script tự động để tạo và xác nhận snapshot định kỳ 
